@@ -1,0 +1,17 @@
+{
+  "name": "hpe-ai-cloud",
+  "version": "1.0.0",
+  "description": "HPE AI Cloud application",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "echo 'No build step required'",
+    "test": "echo 'No tests specified'"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
