@@ -10,8 +10,7 @@ import {
   Dashboard,
   DocumentText,
   Alert,
-  BarChart,
-  Home
+  BarChart
 } from 'grommet-icons';
 
 interface MenuItem {

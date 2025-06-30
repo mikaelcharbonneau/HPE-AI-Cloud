@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -13,7 +13,6 @@ import {
   Select,
   Spinner,
   Tag,
-  Pagination,
 } from 'grommet';
 import { Add, Search, Filter } from 'grommet-icons';
 import { useApi } from '../contexts/ApiContext';
@@ -51,11 +50,7 @@ function AuditsList() {
   const [hasMore, setHasMore] = useState(false);
   const itemsPerPage = 20;
 
-  useEffect(() => {
-    fetchAudits();
-  }, [currentPage, filters]);
-
-  const fetchAudits = async () => {
+  const fetchAudits = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -74,7 +69,11 @@ function AuditsList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [api, currentPage, filters.datacenter, filters.status, itemsPerPage]);
+
+  useEffect(() => {
+    fetchAudits();
+  }, [fetchAudits]);
 
   const handleFilterChange = (field: keyof Filters, value: string) => {
     setFilters({ ...filters, [field]: value });

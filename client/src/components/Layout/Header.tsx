@@ -6,8 +6,7 @@ import {
   Button, 
   Avatar,
   DropButton,
-  Nav,
-  Anchor
+  Nav
 } from 'grommet';
 import { 
   User, 

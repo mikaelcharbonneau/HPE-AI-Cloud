@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Card,
@@ -49,11 +49,7 @@ function IncidentsList() {
     status: '',
   });
 
-  useEffect(() => {
-    fetchIncidents();
-  }, []);
-
-  const fetchIncidents = async () => {
+  const fetchIncidents = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get('/api/incidents');
@@ -63,7 +59,11 @@ function IncidentsList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [api]);
+
+  useEffect(() => {
+    fetchIncidents();
+  }, [fetchIncidents]);
 
   const handleResolveIncident = async (incidentId: string) => {
     try {

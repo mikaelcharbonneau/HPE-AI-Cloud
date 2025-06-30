@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -21,9 +21,7 @@ import {
 } from 'grommet';
 import {
   Add,
-  Edit,
   StatusGood,
-  Alert,
   Previous,
   Save,
 } from 'grommet-icons';
@@ -84,13 +82,7 @@ function AuditDetail() {
   });
   const [submittingIssue, setSubmittingIssue] = useState(false);
 
-  useEffect(() => {
-    if (id) {
-      fetchAudit();
-    }
-  }, [id]);
-
-  const fetchAudit = async () => {
+  const fetchAudit = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/api/audits/${id}`);
@@ -100,7 +92,13 @@ function AuditDetail() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [api, id]);
+
+  useEffect(() => {
+    if (id) {
+      fetchAudit();
+    }
+  }, [id, fetchAudit]);
 
   const handleAddIssue = async () => {
     try {
