@@ -61,5 +61,19 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hpe/datacenter-audit-tool.git"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "testMatch": [
+      "<rootDir>/src/**/__tests__/**/*.js",
+      "<rootDir>/src/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/**/*.test.js"
+    ],
+    "testPathIgnorePatterns": [
+      "<rootDir>/client/"
+    ]
   }
 }
