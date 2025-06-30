@@ -29,6 +29,8 @@ const incidentRoutes = require('./src/routes/incidents');
 const app = express();
 const port = process.env.PORT || 3000;
 
+
+
 // Trust proxy for accurate IP addresses (important for Azure App Service)
 app.set('trust proxy', 1);
 
