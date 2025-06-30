@@ -15,7 +15,6 @@ import {
   Notification,
 } from 'grommet';
 import { Download, DocumentText } from 'grommet-icons';
-import { useApi } from '../contexts/ApiContext';
 
 interface ReportFilters {
   reportType: string;
