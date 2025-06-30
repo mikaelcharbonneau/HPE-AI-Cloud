@@ -59,10 +59,8 @@ An internal HPE web application for streamlining datacenter auditing processes, 
 
 2. **Database Setup**
    ```bash
-   # Create PostgreSQL database
-   createdb hpe_audit_tool
-   
-   # Run migrations to create tables
+   # The PostgreSQL database is already configured in Azure
+   # Just run migrations to create tables
    node scripts/migrate.js
    
    # Seed with sample data (optional)
@@ -73,22 +71,31 @@ An internal HPE web application for streamlining datacenter auditing processes, 
    Create a `.env` file in the root directory:
    ```env
    # Database Configuration
-   DB_HOST=localhost
-   DB_PORT=5432
-   DB_NAME=hpe_audit_tool
-   DB_USER=your_username
-   DB_PASSWORD=your_password
+   DATABASE_HOST=aicloudserver.postgres.database.azure.com
+   DATABASE_PORT=5432
+   DATABASE_NAME=postgres
+   DATABASE_USER=mc
+   DATABASE_PASSWORD=Enzo1619
+   
+   # Azure PostgreSQL Configuration (for Azure AD auth)
+   AZURE_POSTGRESQL_HOST=aicloudserver.postgres.database.azure.com
+   AZURE_POSTGRESQL_USER=aad_postgresql_8c0d3
+   AZURE_POSTGRESQL_DATABASE=postgres
+   AZURE_POSTGRESQL_PORT=5432
+   AZURE_POSTGRESQL_SSL=true
    
    # Authentication
-   JWT_SECRET=your-super-secret-jwt-key-here
-   JWT_REFRESH_SECRET=your-refresh-secret-here
+   JWT_SECRET=super-secret-production-key-change-this
    
    # Server Configuration
    PORT=3001
-   NODE_ENV=development
+   NODE_ENV=production
+   
+   # Azure Configuration
+   AZURE_AD_AUTH=false
    
    # CORS Configuration
-   FRONTEND_URL=http://localhost:3000
+   FRONTEND_URL=https://ai-cloud-audits-bwdka4gfcdbpaad6.canadacentral-01.azurewebsites.net
    ```
 
 4. **Start Backend Server**

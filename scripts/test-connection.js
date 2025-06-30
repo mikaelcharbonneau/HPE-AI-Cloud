@@ -1,7 +1,4 @@
-const { Pool } = require('pg');
-const { exec } = require('child_process');
-const { promisify } = require('util');
-const execAsync = promisify(exec);
+const { Client } = require('pg');
 require('dotenv').config();
 
 console.log('🔍 Environment variables:');
@@ -9,152 +6,100 @@ console.log('DATABASE_HOST:', process.env.DATABASE_HOST);
 console.log('DATABASE_PORT:', process.env.DATABASE_PORT);
 console.log('DATABASE_NAME:', process.env.DATABASE_NAME);
 console.log('DATABASE_USER:', process.env.DATABASE_USER);
-console.log('AZURE_AD_AUTH:', process.env.AZURE_AD_AUTH);
 
-// Function to get Azure AD access token
-async function getAzureADToken() {
+async function testConnectionString() {
+  // Try connection string format
+  const connectionString = `postgres://${process.env.DATABASE_USER}:${process.env.DATABASE_PASSWORD}@${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT || 5432}/${process.env.DATABASE_NAME}?sslmode=require`;
+  
+  console.log('\n🔗 Connection String (sanitized):', connectionString.replace(process.env.DATABASE_PASSWORD, '***'));
+  
+  const client = new Client({
+    connectionString: connectionString,
+    connectionTimeoutMillis: 20000
+  });
+
   try {
-    if (process.env.AZURE_AD_AUTH === 'true') {
-      console.log('🔐 Getting Azure AD access token...');
-      const { stdout } = await execAsync(
-        'az account get-access-token --resource https://ossrdbms-aad.database.windows.net --query accessToken --output tsv'
-      );
-      const token = stdout.trim();
-      console.log('✅ Azure AD token obtained, length:', token.length);
-      return token;
-    }
-    return null;
-  } catch (error) {
-    console.error('❌ Failed to get Azure AD token:', error.message);
-    return null;
-  }
-}
+    console.log('\n🔄 Attempting connection string connection...');
+    
+    client.on('connect', () => console.log('✅ Client connected via connection string!'));
+    client.on('error', (err) => console.error('💥 Client error:', err.message));
+    client.on('end', () => console.log('🔚 Client disconnected'));
 
-// Database configuration for Flexible Server
-async function getDatabaseConfig() {
-  const dbConfig = {
-    host: process.env.DATABASE_HOST,
-    port: process.env.DATABASE_PORT || 5432,
-    database: process.env.DATABASE_NAME,
-    user: process.env.DATABASE_USER,
-    password: process.env.DATABASE_PASSWORD,
-    connectionTimeoutMillis: 30000, // Reduced timeout for faster feedback
-    query_timeout: 30000,
-    statement_timeout: 30000,
-    idle_in_transaction_session_timeout: 30000,
-    // Try minimal SSL config first
-    ssl: true
-  };
-
-  // Get Azure AD token if using Azure AD auth
-  if (process.env.AZURE_AD_AUTH === 'true') {
-    const token = await getAzureADToken();
-    if (token) {
-      dbConfig.password = token;
-      console.log('🔑 Using Azure AD token as password');
-      
-      // Additional settings for Azure AD with Flexible Server
-      dbConfig.application_name = 'NodeJS-Test-Connection';
-    } else {
-      console.error('❌ Failed to get Azure AD token, connection will likely fail');
-    }
-  } else {
-    console.log('🔑 Using standard password authentication');
-  }
-
-  return dbConfig;
-}
-
-console.log('🔌 Testing database connection to Azure PostgreSQL Flexible Server...');
-
-async function testConnection() {
-  let pool;
-  try {
-    const dbConfig = await getDatabaseConfig();
+    await client.connect();
+    console.log('✅ Connection string connection established!');
     
-    console.log('\n📋 Connection config:');
-    console.log('Host:', dbConfig.host);
-    console.log('Port:', dbConfig.port);
-    console.log('Database:', dbConfig.database);
-    console.log('User:', dbConfig.user);
-    console.log('Password length:', dbConfig.password ? dbConfig.password.length : 'undefined');
-    console.log('SSL enabled:', !!dbConfig.ssl);
-    console.log('Connection timeout:', dbConfig.connectionTimeoutMillis + 'ms');
-
-    pool = new Pool(dbConfig);
+    const result = await client.query('SELECT NOW(), current_user, version()');
+    console.log('⏰ Current time:', result.rows[0].now);
+    console.log('👤 Current user:', result.rows[0].current_user);
+    console.log('📋 PostgreSQL version:', result.rows[0].version.substring(0, 80));
     
-    // Add error handler for pool
-    pool.on('error', (err) => {
-      console.error('💥 Pool error:', err.message);
-    });
-    
-    console.log('\n🔄 Attempting to connect...');
-    const client = await pool.connect();
-    console.log('✅ Database connected successfully!');
-    
-    // Test a simple query
-    console.log('\n🔍 Testing queries...');
-    const result = await client.query('SELECT NOW() as current_time, version() as postgres_version, current_user as connected_user');
-    console.log('⏰ Database time:', result.rows[0].current_time);
-    console.log('👤 Connected as user:', result.rows[0].connected_user);
-    console.log('🐘 PostgreSQL version:', result.rows[0].postgres_version.substring(0, 80) + '...');
-    
-    // Test if tables exist
-    const tablesResult = await client.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-      ORDER BY table_name
-    `);
-    
-    console.log('\n📊 Existing tables:', tablesResult.rows.map(row => row.table_name));
-    
-    // Test Azure AD specific query if using Azure AD
-    if (process.env.AZURE_AD_AUTH === 'true') {
-      try {
-        const authResult = await client.query('SELECT current_setting(\'is_superuser\') as is_superuser, session_user as session_user');
-        console.log('🔐 Auth info - Is superuser:', authResult.rows[0].is_superuser);
-        console.log('🔐 Auth info - Session user:', authResult.rows[0].session_user);
-      } catch (authErr) {
-        console.log('⚠️ Could not get auth info:', authErr.message);
-      }
-    }
-    
-    client.release();
+    await client.end();
+    console.log('🎉 Connection string test completed successfully!');
+    return true;
     
   } catch (error) {
-    console.error('\n❌ Database connection failed:');
+    console.error('\n❌ Connection string test failed:');
     console.error('Error code:', error.code);
     console.error('Error message:', error.message);
-    console.error('Error name:', error.name);
-    
-    if (error.code === 'ENOTFOUND') {
-      console.error('🔍 This usually means the hostname is incorrect');
-    } else if (error.code === 'ECONNREFUSED') {
-      console.error('🔍 This usually means the port is incorrect or firewall is blocking');
-    } else if (error.code === 'ETIMEDOUT') {
-      console.error('🔍 This usually means firewall blocking or network issues');
-      console.error('💡 Check Azure PostgreSQL firewall rules');
-    } else if (error.code === '28P01') {
-      console.error('🔍 This usually means incorrect username/password');
-      console.error('💡 For Azure AD: Make sure user is added as Azure AD administrator');
-    } else if (error.code === '3D000') {
-      console.error('🔍 This usually means the database name is incorrect');
-    } else if (error.code === '28000') {
-      console.error('🔍 This usually means authentication failed - check Azure AD token and admin setup');
-    } else if (error.message.includes('timeout')) {
-      console.error('�� Connection timeout - this could be:');
-      console.error('  - Firewall blocking the connection');
-      console.error('  - Azure AD authentication not properly configured');
-      console.error('  - User not added as Azure AD administrator');
-    }
-    
-    console.error('\n🛠️ Full error details:', error);
-  } finally {
-    if (pool) {
-      await pool.end();
-    }
+    return false;
   }
 }
 
-testConnection(); 
+async function testConnectionStringNoSSL() {
+  // Try connection string without SSL requirement
+  const connectionString = `postgres://${process.env.DATABASE_USER}:${process.env.DATABASE_PASSWORD}@${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT || 5432}/${process.env.DATABASE_NAME}`;
+  
+  console.log('\n🔗 Connection String No SSL (sanitized):', connectionString.replace(process.env.DATABASE_PASSWORD, '***'));
+  
+  const client = new Client({
+    connectionString: connectionString,
+    connectionTimeoutMillis: 20000
+  });
+
+  try {
+    console.log('\n🔄 Attempting connection string without SSL...');
+    
+    await client.connect();
+    console.log('✅ No SSL connection established!');
+    
+    const result = await client.query('SELECT NOW(), current_user');
+    console.log('⏰ Current time:', result.rows[0].now);
+    console.log('👤 Current user:', result.rows[0].current_user);
+    
+    await client.end();
+    console.log('🎉 No SSL test completed successfully!');
+    return true;
+    
+  } catch (error) {
+    console.error('\n❌ No SSL connection failed:');
+    console.error('Error code:', error.code);
+    console.error('Error message:', error.message);
+    return false;
+  }
+}
+
+async function runTests() {
+  console.log('🧪 Testing Azure PostgreSQL Flexible Server connection...\n');
+  
+  // Test connection string with SSL
+  const sslSuccess = await testConnectionString();
+  if (sslSuccess) return;
+  
+  // Test connection string without SSL
+  const noSslSuccess = await testConnectionStringNoSSL();
+  if (noSslSuccess) return;
+  
+  console.log('\n❌ All connection attempts failed.');
+  console.log('🔍 This might indicate:');
+  console.log('  1. Network connectivity issues from your location');
+  console.log('  2. Azure PostgreSQL Flexible Server configuration issue');
+  console.log('  3. Authentication or authorization problem');
+  console.log('  4. Regional access restrictions');
+  console.log('\n💡 Recommendations:');
+  console.log('  1. Test from Azure Cloud Shell: https://shell.azure.com');
+  console.log('  2. Verify server is running: az postgres flexible-server show');
+  console.log('  3. Check server logs if available');
+  console.log('  4. Try from a different network location');
+}
+
+runTests(); 
